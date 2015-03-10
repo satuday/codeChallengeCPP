@@ -12,8 +12,8 @@
 #include "fstream"
 #include "list"
 #include "algorithm"
-#include "cstddef";
-#include "windows.h";
+#include "cstddef"
+#include "windows.h"
 #include <Wincrypt.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -21,6 +21,10 @@
 #include <Wincrypt.h>
 #include <ctime>
 #include <iomanip>
+#include <Windows.h>
+#include <ppl.h>
+#include <array>
+#include <ppltasks.h>
 
 
 std::string anagram = "poultry outwits ants";
@@ -124,6 +128,31 @@ std::string findPhase(std::list<std::string> wordList)
 	}
 	return phase;
 }
+
+std::string parallelFindPhase(std::list<std::string> wordList)
+{
+	std::string phase;
+	concurrency::parallel_for_each(begin(wordList), end(wordList), [&](std::string word1){
+		std::list<std::string> ele2 = wordList;
+		ele2.remove(word1);
+		concurrency::parallel_for_each(begin(ele2), end(ele2), [&](std::string word2){
+			std::list<std::string> ele3 = ele2;
+			ele3.remove(word2);
+			concurrency::parallel_for_each(begin(ele3), end(ele3), [&](std::string word3){
+				std::string p = word1 + " " + word2 + " " + word3;
+				bool b = stringMatchHash(p);
+				if (b)
+				{
+					phase = p;
+					concurrency::cancel_current_task();
+				}
+			});
+		});
+	});
+
+	return phase;
+}
+
 int _tmain(int argc, _TCHAR* argv[])
 {
 	using namespace std;
@@ -155,19 +184,16 @@ int _tmain(int argc, _TCHAR* argv[])
 
 		file.close();
 	}
+
+	wordList.sort(std::greater<string>());
 	time_t start = time(0);
-	struct tm current;
+	std::cout << asctime(localtime(&start)) << std::endl;
 
-	char* dt;
-	ctime_s(dt, 26, &start);
-	
-	cout << dt;
 
-	string phase = findPhase(wordList);
+	string phase = parallelFindPhase(wordList);
 
 	time_t stop = time(0);
-	ctime_s(dt, 26, &stop);
-	cout << dt;
+	std::cout << asctime(localtime(&stop)) << std::endl;
 
 	cout << phase << "\n";
 	//std::printf("%s \n", anagram);
